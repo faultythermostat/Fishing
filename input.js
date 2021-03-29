@@ -1,138 +1,56 @@
-//to do:::
-//per button dragging? (dragging would eiher be different arrays per button or all buttons would activate the same dragging) {TEST WITH A REGULAR MOUSE FIRST}
-//handle off screen draggin (cancels all buttons)
-//comment
-//request state of "any" key/button or "all"
-//flipflop to repeats
-//store last states of key/button
-//drag offset return function
-
-//multitouch handler (same as mouse but with extra event handlers for gestures)
-
-//make a better version with prototypes intead of static objects
-
-//add "onKeydown" function etc. to run inside of the event instead of a seperate function
-
-//dynamic key adding option to add keys that are pressed to the keys list
-
-
-
-
-
-//things to remember:
-//mouse buttons dont fire more than once when holding, unlike keyboard keys that fire every few milliseconds when held down
-	//this means that the mouse doesnt need flipflop variables
-//debugging within poll and state requesters happens too often and is way too much
-	//debugging will have 3 levels
-	//debugging max will debug requesters
-
-
-
-
-
-
-/* KEYBOARD USAGE
-
-keyboard.init(); //initializes the event listeners
-keyboard.addKeys([{ //adds buttons (must be an object [or multiple] inside an array)
-	key:"a", //char will get converted to lowercase
-	flipFlop:false //whether to register press down as a continuous stream of fires or as one fire
-}]);
-keyboard.pollKey("a"); //returns whether the key has been pressed since the last poll (once called, resets the poll state to false unless false is also passed)
-keyboard.keyState("a"); //returns current key state
-
-///key examples:///
-	a-z: 	"a","A"
-	0-9: 	"0","9"
-	[] : 	"[","]"
-	space: 	" "
-	enter: 	"Enter","enter"
-	F1-F12:	"F1","f1"
-	arrows: "arrowup","arrowdown"
-
-*/
-
-keyboard = {
-	keys:[],
-	initTime:-1,
-	pollKey:function(ktp,resetter=true) { //if you dont want to reset the poll, pass false
-		for (var i=0;i<keyboard.keys.length;i++) {
-			if (keyboard.keys[i].key.toLowerCase()==ktp.toLowerCase()) {
-				return keyboard.keys[i].poll(resetter);
-			}
-		}
-		return null;
-	},
-	keyState:function(ktp) {
-		for (var i=0;i<keyboard.keys.length;i++) {
-			if (keyboard.keys[i].key.toLowerCase()==ktp.toLowerCase()) {
-				return keyboard.keys[i].getState();
-			}
-		}
-		return null;
-	},
-	keyDown:function(e) {
-		for (var i=0;i<keyboard.keys.length;i++) {
-			if (e.key.toLowerCase()==keyboard.keys[i].key.toLowerCase()) {
-				if (!(keyboard.keys[i].flipFlop && e.repeat)) {
-					keyboard.keys[i].status = true;
-					keyboard.keys[i].triggered = true;
-					keyboard.keys[i].timeStamp = e.timeStamp;
-					return;
-				}
-			}
-		}
-	},
-	keyUp:function(e) {
-		for (var i=0;i<keyboard.keys.length;i++) {
-			if (e.key.toLowerCase()==keyboard.keys[i].key.toLowerCase()) {
-				keyboard.keys[i].status = false;
-				keyboard.keys[i].timeStamp = e.timeStamp;
-				return;
-			}
-		}
-	},
-	init:function() {
-		addEventListener("keydown",keyboard.keyDown);
-		addEventListener("keyup",keyboard.keyUp);
-		keyboard.initTime = Date.now();
-	},
-	keyConstructor:function(ky,fp) {
+class _key {
+	constructor(ky,fp=true) {
 		this.key = ky;
 		this.status = false;
 		this.triggered = false;
-		this.timeStamp = -1;
 		this.flipFlop = fp;
-		this.poll = function(resetter=true) {
-			if (this.triggered==true) {
-				if (resetter) this.triggered = false;
-				return true;
-			}
-			return false;
+	}
+	poll = function(resetter=true) {
+		if (this.triggered==true) {
+			if (resetter) this.triggered = false;
+			return true;
 		}
-		this.getState = function() {
-			return this.status;
+		return false;
+	}
+	get state() {
+		return this.status;
+	}
+	keyDown(repeat) {//repeat is true if the keypress was fired by holding the key down
+		if (!(this.flipFlop && repeat)) {
+			this.status = true;
+			this.triggered = true;
+			return;
 		}
-	},
-	addKeys:function(keys) {
-		for (var i=0;i<keys.length;i++) {
-			keyboard.keys.push(
-				new keyboard.keyConstructor(keys[i].key.toLowerCase(),keys[i].flipFlop)
-			)
-		}
+	}
+	keyUp() {
+		this.status = false;
+		return;
 	}
 }
 
-/*
+class _keyboard {
+	constructor() {
+		addEventListener("keydown",this.keyDown.bind(this));
+		addEventListener("keyup",this.keyUp.bind(this));
+		this.keys = []
+	}
+	keyDown(e) {
+		if (!this.keys.some(a=>e.key.toLowerCase()==a.key)) this.addKey(e.key.toLowerCase())//check if the key doesnt exist already
+		this.callKey(e.key.toLowerCase()).keyDown(e.repeat)
+	}
+	keyUp(e) {
+		if (!this.keys.some(a=>e.key.toLowerCase()==a.key)) this.addKey(e.key.toLowerCase())//check if the key doesnt exist already
+		this.callKey(e.key.toLowerCase()).keyUp(e.repeat)
+	}
+	callKey(ky) {
+		if (!this.keys.some(a=>ky.toLowerCase()==a.key)) this.addKey(ky.toLowerCase())//check if the key doesnt exist already
+		return this.keys.find(a=>ky==a.key)
+	}
+	addKey(ky,fp=false) {
+		this.keys.push(new _key(ky,fp))
+	}
+}
 
-mouse.init(); //initializes the event listeners (add false param. to ignore mouse movements)
-mouse.addButtons([{ //adds buttons (must be an object [or multiple] inside an array)
-	button:0, //0 is left, 1 middle, 2 right
-}]);
-mouse.pollButton(0); //returns whether the button has been pressed since the last poll (once called, resets the poll state to false unless false is also passed)
-mouse.buttonState(0); //returns current button state
-
-*/
 mouse = {
 	buttons:[],
 	initTime:-1,
@@ -264,171 +182,3 @@ mouse = {
 		}
 	}
 }
-
-
-inputTest = {};
-inputTest.init = function() {
-	keyboard.init();
-	keyboard.addKeys([{key:"a",flipFlop:false},{key:"b",flipFlop:true}]);
-	console.log("Initiated keys A as a non flipflop key and B as a flipFlop key");
-	graph = new Array(SCREENWIDTH);
-	graph2 = new Array(SCREENWIDTH);
-	graph3 = new Array(SCREENWIDTH);
-	graph4 = new Array(SCREENWIDTH);
-
-	mouse.init();
-	mouse.addButtons([{button:0}]);
-	console.log("Initiated button 0 as a non flipflop button");
-	graph5 = new Array(SCREENWIDTH);
-	graph6 = new Array(SCREENWIDTH);
-	graph7 = new Array(SCREENWIDTH);
-	graph8 = new Array(SCREENWIDTH);
-	
-}
-inputTest.loop = function() {
-	requestAnimationFrame(inputTest.loop);
-	ctx.clearRect(0,0,SCREENWIDTH,SCREENHEIGHT);
-	inputTest.keyboardTest();
-	inputTest.mouseTest();
-}
-inputTest.keyboardTest = function() {
-	graph.shift();
-	graph.push(keyboard.pollKey("a"));
-	
-	graph2.shift();
-	graph2.push(keyboard.keyState("a"));
-	
-	graph3.shift();
-	graph3.push(keyboard.pollKey("b"));
-	
-	graph4.shift();
-	graph4.push(keyboard.keyState("b"));
-	
-	ctx.beginPath();
-	ctx.moveTo(0,10+(graph[0]*5));
-	for (var i=1;i<graph.length;i++) {
-		ctx.lineTo(i,10+(graph[i]*5));
-	}
-	ctx.stroke();
-	
-	ctx.beginPath();
-	ctx.moveTo(0,20+(graph2[0]*5));
-	for (var i=1;i<graph.length;i++) {
-		ctx.lineTo(i,20+(graph2[i]*5));
-	}
-	ctx.stroke();
-	
-	ctx.beginPath();
-	ctx.moveTo(0,30+(graph3[0]*5));
-	for (var i=1;i<graph3.length;i++) {
-		ctx.lineTo(i,30+(graph3[i]*5));
-	}
-	ctx.stroke();
-	
-	ctx.beginPath();
-	ctx.moveTo(0,40+(graph4[0]*5));
-	for (var i=1;i<graph4.length;i++) {
-		ctx.lineTo(i,40+(graph4[i]*5));
-	}
-	ctx.stroke();
-	
-};
-inputTest.mouseTest = function() {
-	if (mouse.dragLocations.length) {
-		ctx.beginPath();
-		ctx.moveTo(mouse.dragLocations[0].x,mouse.dragLocations[0].y);
-		for (var i=1;i<mouse.dragLocations.length;i++) {
-			ctx.lineTo(mouse.dragLocations[i].x,mouse.dragLocations[i].y);
-		}
-		ctx.stroke();
-		ctx.fillText("start",mouse.dragLocations[0].x,mouse.dragLocations[0].y);
-		ctx.fillText("end",mouse.dragLocations[mouse.dragLocations.length-1].x,mouse.dragLocations[mouse.dragLocations.length-1].y);
-	}
-	if (!mouse.buttonState(0)) {
-		ctx.beginPath();
-		ctx.moveTo(mouse.location.x-10,mouse.location.y);
-		ctx.lineTo(mouse.location.x+10,mouse.location.y);
-		ctx.moveTo(mouse.location.x,mouse.location.y-10);
-		ctx.lineTo(mouse.location.x,mouse.location.y+10);
-		ctx.stroke();
-	}
-	
-	graph5.shift();
-	graph5.push(mouse.pollButton(0));
-	
-	graph6.shift();
-	graph6.push(mouse.buttonState(0));
-	
-	graph7.shift();
-	graph7.push(mouse.wheel.position/100);
-	
-	graph8.shift();
-	graph8.push(mouse.wasMoved());
-	
-	ctx.beginPath();
-	ctx.moveTo(0,50+(graph5[0]*5));
-	for (var i=1;i<graph5.length;i++) {
-		ctx.lineTo(i,50+(graph5[i]*5));
-	}
-	ctx.stroke();
-	
-	ctx.beginPath();
-	ctx.moveTo(0,60+(graph6[0]*5));
-	for (var i=1;i<graph6.length;i++) {
-		ctx.lineTo(i,60+(graph6[i]*5));
-	}
-	ctx.stroke();
-	
-	ctx.beginPath();
-	ctx.moveTo(0,100+(graph7[0]*5));
-	for (var i=1;i<graph7.length;i++) {
-		ctx.lineTo(i,100+(graph7[i]*5));
-	}
-	ctx.stroke();
-	ctx.fillText(mouse.wheel.position,SCREENWIDTH-(ctx.measureText(mouse.wheel.position).SCREENWIDTH),98+(graph7[SCREENWIDTH-1]*5))
-	
-	ctx.beginPath();
-	ctx.moveTo(0,110+(graph8[0]*5));
-	for (var i=1;i<graph8.length;i++) {
-		ctx.lineTo(i,110+(graph8[i]*5));
-	}
-	ctx.stroke();
-};
-
-_FPS = function(sampleRate) {
-	this.average = null;
-	this.samples = new Array(sampleRate);
-	this.samples.fill(0)
-	this.startTime = null;
-	this.max = null;
-	this.min = null;
-	this.sampleRate = sampleRate;
-}
-_FPS.prototype.start = function() {
-	this.startTime = Date.now();
-}
-_FPS.prototype.stop = function() {
-	this.samples.push(/*Math.round*/(1/((Date.now()-this.startTime)/1000)));
-	this.average = Math.average(this.samples);
-	while (this.samples.length>=this.sampleRate) this.samples.shift()
-}
-_FPS.prototype.draw = function(SCREENWIDTH,SCREENHEIGHT) {
-	ctx.strokeStyle = "white";
-	ctx.fillStyle = "white";
-	ctx.font = "12px sans-serif";
-	//ctx.strokeRect(0,12,SCREENWIDTH,SCREENHEIGHT);
-	this.max = Math.max(...this.samples);
-	this.min = Math.min(...this.samples);
-	this.mid = this.average
-	yScale = -(SCREENHEIGHT/(this.max-this.min));
-	yShift = this.mid;
-	xScale = SCREENWIDTH/this.samples.length;
-	ctx.fillText(fps.average,2,12);
-	ctx.beginPath();
-	ctx.moveTo(0,((this.samples[0]-yShift)*yScale)+(12+SCREENHEIGHT/2))
-	for (var i=1;i<this.samples.length;i++) {
-		ctx.lineTo((i*xScale),((this.samples[i]-yShift)*yScale)+(12+SCREENHEIGHT/2))
-	}
-	ctx.stroke();
-}
-
