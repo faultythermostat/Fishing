@@ -4,7 +4,7 @@
 ////move line and casting objects to under the player obj
 //animations
 //better map making with better tile diversity
-//debug mode
+//segregate the debug mode from actual gameplay
 //fish escape based on type nd strength
 //hook, bait, lines
 //better gui and info text, show bucket
@@ -18,21 +18,12 @@
 //fish type stats that are constant per species
 //keep track of fish caught, even if released
 //fish favor the top right
+//move all constants to external variables for easy changing
 
 init = function() {
 	ctx.init()
-	keyboard.init()//using an old version of my keyboard/mouse handler, will update to a newer version soon
-	keyboard.addKeys([
-		{key:"a",flipFlop:false},
-		{key:"w",flipFlop:false},
-		{key:"s",flipFlop:false},
-		{key:"d",flipFlop:false},
-		{key:" ",flipFlop:true},
-		{key:"escape",flipFlop:false},
-		{key:"m",flipFlop:false}
-	])
-	mouse.init();
-	mouse.addButtons({button:0})
+	keyboard = new _keyboard()
+	keyboard.addKey(" ",true)
 	
 	SCALE = 20
 	DEBUG = true;
@@ -41,90 +32,101 @@ init = function() {
 	map = new _map(Math.floor(SCREENWIDTH/SCALE),Math.floor(SCREENHEIGHT/SCALE))//create the empty map
 	map.addLake(map.width/3) //add  lake to the map
 	map.populate(10)
+	player = new _player()
+	casting = new _casting()
+	line = new _line()
 	
 	loop();
 }
 
-player = {
-	x:0,y:0,speed:0.05,dir:"xp",
-	caughtFish:false,bucket:[],
-	bucketSize:5,
-	move:function(x,y) {//might change this later, not very good. the player doesnt ever actually touch the edges of things which can cause strange movements
+class _player {
+	constructor() {
+		this.x = 0
+		this.y = 0
+		this.speed = 0.05
+		this.dir = "xp"
+		this.caughtFish = false
+		this.bucket = []
+		this.bucketSize = 5
+	}
+	move(x,y) {//might change this later, not very good. the player doesnt ever actually touch the edges of things which can cause strange movements
 		if (x>0) {
-			player.dir = "xp"//set the players direction to x positive
-			if ((player.x+player.speed)>map.width-1) return
-			if ((map.data[Math.ceil(player.x+player.speed)+(Math.floor(player.y)*map.width)]||//dont do anything if player is about to make an invalid move
-				map.data[Math.ceil(player.x+player.speed)+(Math.ceil(player.y)*map.width)])) return
+			this.dir = "xp"//set the players direction to x positive
+			if ((this.x+this.speed)>map.width-1) return
+			if ((map.data[Math.ceil(this.x+this.speed)+(Math.floor(this.y)*map.width)]||//dont do anything if player is about to make an invalid move
+				map.data[Math.ceil(this.x+this.speed)+(Math.ceil(this.y)*map.width)])) return
 		}
 		if (x<0) {
-			player.dir = "xn"
-			if ((player.x-player.speed)<0) return
-			if ((map.data[Math.floor(player.x-player.speed)+(Math.floor(player.y)*map.width)]||
-					map.data[Math.floor(player.x-player.speed)+(Math.ceil(player.y)*map.width)])) return
+			this.dir = "xn"
+			if ((this.x-this.speed)<0) return
+			if ((map.data[Math.floor(this.x-this.speed)+(Math.floor(this.y)*map.width)]||
+					map.data[Math.floor(this.x-this.speed)+(Math.ceil(this.y)*map.width)])) return
 		}
 		if (y>0) {
-			player.dir = "yp"
-			if ((player.y+player.speed)>map.height-1) return
-			if ((map.data[Math.floor(player.x)+(Math.ceil(player.y+player.speed)*map.width)]||
-				map.data[Math.ceil(player.x)+(Math.ceil(player.y+player.speed)*map.width)])) return
+			this.dir = "yp"
+			if ((this.y+this.speed)>map.height-1) return
+			if ((map.data[Math.floor(this.x)+(Math.ceil(this.y+this.speed)*map.width)]||
+				map.data[Math.ceil(this.x)+(Math.ceil(this.y+this.speed)*map.width)])) return
 		}
 		if (y<0) {
-			player.dir = "yn"
-			if (player.y-player.speed<0) return
-			if ((map.data[Math.floor(player.x)+(Math.floor(player.y-player.speed)*map.width)]||
-				map.data[Math.ceil(player.x)+(Math.floor(player.y-player.speed)*map.width)])) return
+			this.dir = "yn"
+			if (this.y-this.speed<0) return
+			if ((map.data[Math.floor(this.x)+(Math.floor(this.y-this.speed)*map.width)]||
+				map.data[Math.ceil(this.x)+(Math.floor(this.y-this.speed)*map.width)])) return
 		}
 		//if we got here, it must be a valid move, so do it
-		player.x += x*player.speed;
-		player.y += y*player.speed;
-	},
-	getBucketLevel:function() {
-		return player.bucket.reduce((acc,cv)=>acc+cv.weight,0)
-	},
-	addToBucket:function(f) {
-		if (player.getBucketLevel()+f.weight<=player.bucketSize) {//if the bucket can hold it
-			player.bucket.push(f)
+		this.x += x*this.speed;
+		this.y += y*this.speed;
+	}
+	getBucketLevel() {
+		return this.bucket.reduce((acc,cv)=>acc+cv.weight,0)
+	}
+	addToBucket(f) {
+		if (this.getBucketLevel()+f.weight<=this.bucketSize) {//if the bucket can hold it
+			this.bucket.push(f)
 			return true
 		} else {
 			console.log("too heavy for bucket, throwing back")
 			return false
 		}
-	},
-	draw:function() {
+	}
+	draw() {
 		ctx.fillStyle = "red"
 		ctx.strokeStyle = "black"
-		ctx.fillRect(player.x*SCALE,player.y*SCALE,SCALE,SCALE)
-		ctx.strokeRect(player.x*SCALE,player.y*SCALE,SCALE,SCALE)
+		ctx.fillRect(this.x*SCALE,this.y*SCALE,SCALE,SCALE)
+		ctx.strokeRect(this.x*SCALE,this.y*SCALE,SCALE,SCALE)
 		if (DEBUG) {
 			ctx.fillStyle = "black"
-			ctx.fillText(player.dir,player.x*SCALE,(player.y*SCALE)+10)
+			ctx.fillText(this.dir,this.x*SCALE,(this.y*SCALE)+10)
 			ctx.fillStyle = "white"
-			if (player.bucket.length) ctx.fillText(player.bucket.reduce((acc,cv)=>acc+","+cv.type,""),0,10)
+			if (this.bucket.length) ctx.fillText(this.bucket.reduce((acc,cv)=>acc+","+cv.type,""),0,10)
 		}
 	}
 }
 
-casting = {
-	active:false,
-	strength:0,
-	sv:0.1,
-	maxStrength:5,//distance in blocks that can be thrown
-	update:function(){
-		casting.active=true;
-		casting.strength+=casting.sv;
-		if (casting.strength+casting.sv>casting.maxStrength || casting.strength+casting.sv<0) {casting.sv*=-1}
-	},
-	draw:function() {
+class _casting {
+	constructor() {
+		this.active = false
+		this.strength = 0//current throw strength
+		this.sv = 0.1
+		this.maxStrength = 5//distance in blocks that can be thrown
+	}
+	update(){
+		this.active=true;
+		this.strength+=this.sv;
+		if (this.strength+this.sv>this.maxStrength || this.strength+this.sv<0) {this.sv*=-1}
+	}
+	draw() {
 		ctx.setColor("white")
 		ctx.strokeRect(0,0,12,102)
-		ctx.fillRect(1,1+(100*(1-(casting.strength/casting.maxStrength))),10,(100*(casting.strength/casting.maxStrength)))
-	},
-	finish:function(){
-		console.log("casted with strength: "+casting.strength)
-		line.cast(casting.strength)
-		casting.sv = 0.1;
-		casting.active = false;
-		casting.strength = 0;
+		ctx.fillRect(1,1+(100*(1-(this.strength/this.maxStrength))),10,(100*(this.strength/this.maxStrength)))
+	}
+	finish(){
+		console.log("casted with strength: "+this.strength)
+		line.cast(this.strength)
+		this.sv = 0.1;
+		this.active = false;
+		this.strength = 0;
 	}
 }
 
@@ -134,50 +136,49 @@ class _bait {
 	}
 }
 
-line = {
-	active:false,
-	x:0,
-	y:0,
-	size:1,
-	bait:new _bait(),
-	fish:false,
-	pull:function() {
-		line.active = false;
-		if (line.fish) {
-			player.caughtFish = line.fish
+class _line {
+	constructor() {
+		this.active = false
+		this.x = 0
+		this.y = 0
+		this.size = 1
+		this.bait = new _bait()
+		this.fish = false
+	}
+	pull() {
+		this.active = false;
+		if (this.fish) {
+			player.caughtFish = this.fish
 			console.log(player.caughtFish.type)
 		}
-		line.fish = false;
-	},
-	update:function() {
-		
-	},
-	cast:function(strength) {
+		this.fish = false;
+	}
+	cast(strength) {
 		switch(player.dir) {
 			case "yp":
-				line.x = player.x
-				line.y = player.y+strength
+				this.x = player.x
+				this.y = player.y+strength
 			break;
 			case "yn":
-				line.x = player.x
-				line.y = player.y-strength
+				this.x = player.x
+				this.y = player.y-strength
 			break;
 			case "xp":
-				line.x = player.x+strength
-				line.y = player.y
+				this.x = player.x+strength
+				this.y = player.y
 			break;
 			case "xn":
-				line.x = player.x-strength
-				line.y = player.y
+				this.x = player.x-strength
+				this.y = player.y
 			break;
 		}
-		line.active = true
-		if (!map.data[Math.round(line.x)+(Math.round(line.y)*map.width)]) line.pull()
-	},
-	draw:function() {
-		if (line.fish) {ctx.setColor("pink")} else {ctx.setColor("blue")}
-		ctx.strokeRect(line.x*SCALE,line.y*SCALE,SCALE/2,SCALE/2)
-		ctx.fillRect(line.x*SCALE,line.y*SCALE,SCALE/2,SCALE/2)
+		this.active = true
+		if (!map.data[Math.round(this.x)+(Math.round(this.y)*map.width)]) this.pull()
+	}
+	draw() {
+		if (this.fish) {ctx.setColor("pink")} else {ctx.setColor("blue")}
+		ctx.strokeRect(this.x*SCALE,this.y*SCALE,SCALE/2,SCALE/2)
+		ctx.fillRect(this.x*SCALE,this.y*SCALE,SCALE/2,SCALE/2)
 	}
 }
 
@@ -214,7 +215,7 @@ class _fish {
 		})
 		this.x = possMoves[0].x;//make the next move from the pri-list obtained above
 		this.y = possMoves[0].y;
-		if (line.active && Math.distance({x:line.x,y:line.y},{x:this.x,y:this.y})<=line.size) {//check if caught
+		if (line.active && line.fish == false && Math.distance({x:line.x,y:line.y},{x:this.x,y:this.y})<=line.size) {//check if caught
 			line.fish = this;//attach itself to the line
 			this.caught = true
 		} else {
@@ -318,31 +319,30 @@ class _map {
 }
 
 update = function() {
-	if (keyboard.pollKey("m")) DEBUG = !DEBUG
-	if (keyboard.keyState("w")) {//player moves faster diagonally than straight
+	if (keyboard.callKey("m").poll()) DEBUG = !DEBUG
+	if (keyboard.callKey("w").state) {//player moves faster diagonally than straight
 		player.move(0,-1)
 	}
-	if (keyboard.keyState("s")) {
+	if (keyboard.callKey("s").state) {
 		player.move(0,1)
 	}
-	if (keyboard.keyState("a")) {
+	if (keyboard.callKey("a").state) {
 		player.move(-1,0)
 	}
-	if (keyboard.keyState("d")) {
+	if (keyboard.callKey("d").state) {
 		player.move(1,0)
 	}
-	if (keyboard.pollKey(" ") && !casting.active && !line.active) {casting.update()}
-	if (keyboard.keyState(" ")) {
+	if (keyboard.callKey(" ").poll() && !casting.active && !line.active) {casting.update()}
+	if (keyboard.callKey(" ").state) {
 		if (line.active) {
 			line.pull()
-			keyboard.pollKey(" ")
+			keyboard.callKey(" ").poll()
 		} else if (casting.active)  {
 			casting.update()
 		}
 	} else if (casting.active) {
 		casting.finish()
 	}
-	if (line.active) line.update()
 	map.update()
 }
 
@@ -370,13 +370,13 @@ loop = function() {
 	requestAnimationFrame(loop)
 	if (player.caughtFish) {
 		drawCaughtFish(player.caughtFish)
-		if (keyboard.pollKey(" ")) {
+		if (keyboard.callKey(" ").poll()) {
 			if (player.addToBucket(player.caughtFish)) {//will return true if successfully added to the bucket
 				player.caughtFish.active = false//set the fish to be removed from the lake
 			}
 			player.caughtFish = false//clear the fish being caught
 		}
-		if (keyboard.pollKey("escape")) {
+		if (keyboard.callKey("escape").poll()) {
 			//player.addToBucket(player.caughtFish)
 			player.caughtFish = false
 		}
