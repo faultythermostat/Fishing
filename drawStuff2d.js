@@ -1,23 +1,12 @@
-//color scaler function (b-w scale)
-
-var c = document.getElementById("Canvas");
+var c = document.getElementById("Canvas");//init canvas
 ctx = c.getContext("2d");
 
 ctx.init = function() {
-	//make the size changable as a parameter?
-	ctx.canvas.width = window.innerWidth;
+	ctx.canvas.width = window.innerWidth;//set canvas size to fill window
 	ctx.canvas.height = window.innerHeight;
-	SCREENWIDTH = window.innerWidth;
+	SCREENWIDTH = window.innerWidth;//create global width and height vars
 	SCREENHEIGHT = window.innerHeight;
-	//camera = new _camera(new _VECTOR3D(0,0,0));
-	return true;
-}
-ctx.changeFontSize = function(ns=12) {
-	for (var i=0;i<ctx.font.length;i++) {
-		if (isNaN(ctx.font.charAt(i))) {
-			ctx.font = ns+ctx.font.substr(2)
-		}
-	}
+	return 1;
 }
 ctx.strokeCircle = function(x,y,r,color="white") {
 	ctx.beginPath();
